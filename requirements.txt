@@ -1,0 +1,15 @@
+# Advanced CrewAI Demo Requirements
+
+# Core frameworks
+crewai>=0.80.0
+langchain>=1.0.0
+langchain-openai>=1.0.0
+
+# Search
+duckduckgo-search>=5.0.0,<6.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+
+# MCP (якщо потрібно встановлювати окремо)
+# mcp>=0.1.0
