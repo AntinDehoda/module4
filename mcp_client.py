@@ -24,8 +24,7 @@ class MCPSequentialThinkingClient:
         """
         self.server_script_path = server_script_path
         self.session: Optional[ClientSession] = None
-        self._loop = None
-        self._transport = None
+        self._context = None
 
     async def connect(self):
         """Підключення до MCP сервера"""
@@ -44,9 +43,11 @@ class MCPSequentialThinkingClient:
                 env=None
             )
 
-        # Підключення
-        self._transport = await stdio_client(server_params)
-        self.session = ClientSession(self._transport[0], self._transport[1])
+        # Підключення (stdio_client - це async context manager)
+        self._context = stdio_client(server_params)
+        read_stream, write_stream = await self._context.__aenter__()
+
+        self.session = ClientSession(read_stream, write_stream)
 
         # Ініціалізація сесії
         await self.session.initialize()
@@ -55,12 +56,11 @@ class MCPSequentialThinkingClient:
 
     async def disconnect(self):
         """Відключення від сервера"""
-        if self.session:
-            # Закриття транспорту
-            if hasattr(self._transport[0], 'close'):
-                await self._transport[0].close()
-            if hasattr(self._transport[1], 'close'):
-                await self._transport[1].close()
+        if hasattr(self, '_context'):
+            try:
+                await self._context.__aexit__(None, None, None)
+            except Exception:
+                pass
         print("🔌 Відключено від MCP сервера")
 
     async def list_tools(self) -> List[Dict[str, Any]]:
