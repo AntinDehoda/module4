@@ -11,5 +11,6 @@ duckduckgo-search>=5.0.0,<6.0.0
 # Utilities
 python-dotenv>=1.0.0
 
-# MCP (якщо потрібно встановлювати окремо)
-# mcp>=0.1.0
+# MCP Protocol
+mcp>=1.0.0
+sequential-thinking-mcp>=0.1.0

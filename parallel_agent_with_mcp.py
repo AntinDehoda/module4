@@ -5,6 +5,8 @@ Advanced CrewAI Agent з паралельним запуском та MCP Sequen
 1. Паралельний пошук новин з 3 джерел (BBC, CNN, Reuters)
 2. Використання MCP Sequential Thinking для глибокого аналізу
 3. Синтез висновків з рекомендаціями
+
+ВАЖЛИВО: Цей приклад використовує СПРАВЖНІЙ MCP Sequential Thinking сервер!
 """
 
 import time
@@ -12,10 +14,26 @@ from crewai import Agent, Task, Crew, Process
 from crewai.tools import tool
 from duckduckgo_search import DDGS
 from config import Config
-from mcp_thinking_tool import THINKING_TOOLS, reset_thinking_process
 
 # Initialize configuration
 Config.validate()
+
+# Вибір між справжнім MCP та простим wrapper
+USE_REAL_MCP = Config.USE_REAL_MCP
+
+if USE_REAL_MCP:
+    try:
+        from mcp_bridge import MCP_THINKING_TOOLS, cleanup_bridge
+        THINKING_TOOLS = MCP_THINKING_TOOLS
+        print("✅ Використовується СПРАВЖНІЙ MCP Sequential Thinking сервер")
+    except ImportError as e:
+        print(f"⚠️  Помилка імпорту MCP bridge: {e}")
+        print("   Fallback на простий wrapper...")
+        from mcp_thinking_tool_simple import THINKING_TOOLS
+        USE_REAL_MCP = False
+else:
+    from mcp_thinking_tool_simple import THINKING_TOOLS, reset_thinking_process
+    print("✅ Використовується простий Sequential Thinking wrapper")
 
 
 @tool("DuckDuckGo News Search")
@@ -138,7 +156,8 @@ def run_advanced_analysis(topic="artificial intelligence", enable_thinking=True)
     print("🚀 ADVANCED CREWAI: Паралельний пошук + MCP Sequential Thinking")
     print("="*80 + "\n")
 
-    if enable_thinking:
+    # Reset thinking process (тільки для simple wrapper)
+    if enable_thinking and not USE_REAL_MCP:
         reset_thinking_process()
 
     start_time = time.time()
@@ -282,3 +301,11 @@ if __name__ == "__main__":
         print(f"\n❌ Помилка: {e}")
         import traceback
         traceback.print_exc()
+
+    finally:
+        # Очистка MCP bridge при завершенні (якщо використовується справжній MCP)
+        if USE_REAL_MCP:
+            try:
+                cleanup_bridge()
+            except:
+                pass
