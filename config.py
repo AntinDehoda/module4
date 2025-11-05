@@ -31,7 +31,6 @@ class Config:
 
     # MCP settings
     ENABLE_MCP_THINKING = os.getenv("ENABLE_MCP_THINKING", "true").lower() == "true"
-    USE_REAL_MCP = os.getenv("USE_REAL_MCP", "true").lower() == "true"
 
     # Search settings
     MAX_SEARCH_RESULTS = int(os.getenv("MAX_SEARCH_RESULTS", "3"))
@@ -56,8 +55,7 @@ class Config:
         print("🔧 Configuration:")
         print(f"  Model: {cls.DEFAULT_MODEL}")
         print(f"  Temperature: {cls.TEMPERATURE}")
-        print(f"  MCP Thinking: {'✓ Enabled' if cls.ENABLE_MCP_THINKING else '✗ Disabled'}")
-        print(f"  Real MCP Server: {'✓ Yes' if cls.USE_REAL_MCP else '✗ No (Simple wrapper)'}")
+        print(f"  MCP Sequential Thinking: {'✓ Enabled' if cls.ENABLE_MCP_THINKING else '✗ Disabled'}")
         print(f"  API Key: {'✓ Set' if cls.OPENAI_API_KEY else '✗ Not set'}")
         print()
 

@@ -18,22 +18,10 @@ from config import Config
 # Initialize configuration
 Config.validate()
 
-# Вибір між справжнім MCP та простим wrapper
-USE_REAL_MCP = Config.USE_REAL_MCP
-
-if USE_REAL_MCP:
-    try:
-        from mcp_bridge import MCP_THINKING_TOOLS, cleanup_bridge
-        THINKING_TOOLS = MCP_THINKING_TOOLS
-        print("✅ Використовується СПРАВЖНІЙ MCP Sequential Thinking сервер")
-    except ImportError as e:
-        print(f"⚠️  Помилка імпорту MCP bridge: {e}")
-        print("   Fallback на простий wrapper...")
-        from mcp_thinking_tool_simple import THINKING_TOOLS
-        USE_REAL_MCP = False
-else:
-    from mcp_thinking_tool_simple import THINKING_TOOLS, reset_thinking_process
-    print("✅ Використовується простий Sequential Thinking wrapper")
+# Імпорт MCP tools
+from mcp_bridge import MCP_THINKING_TOOLS, cleanup_bridge
+THINKING_TOOLS = MCP_THINKING_TOOLS
+print("✅ Використовується СПРАВЖНІЙ MCP Sequential Thinking сервер")
 
 
 @tool("DuckDuckGo News Search")
@@ -156,10 +144,6 @@ def run_advanced_analysis(topic="artificial intelligence", enable_thinking=True)
     print("🚀 ADVANCED CREWAI: Паралельний пошук + MCP Sequential Thinking")
     print("="*80 + "\n")
 
-    # Reset thinking process (тільки для simple wrapper)
-    if enable_thinking and not USE_REAL_MCP:
-        reset_thinking_process()
-
     start_time = time.time()
 
     # Створюємо агентів
@@ -169,7 +153,8 @@ def run_advanced_analysis(topic="artificial intelligence", enable_thinking=True)
     synthesis_agent = create_synthesis_agent()
 
     print(f"\n🔍 Тема аналізу: '{topic}'")
-    print(f"🧠 MCP Thinking: {'✓ Enabled' if enable_thinking and Config.ENABLE_MCP_THINKING else '✗ Disabled'}")
+    print(f"🧠 MCP Sequential Thinking: {'✓ Enabled' if enable_thinking and Config.ENABLE_MCP_THINKING else '✗ Disabled'}")
+    print(f"📡 MCP Server: npx @modelcontextprotocol/server-sequential-thinking")
     print(f"   └─ Пошук з BBC, CNN, Reuters (паралельно)\n")
 
     # Створюємо задачі для паралельного пошуку
@@ -303,9 +288,8 @@ if __name__ == "__main__":
         traceback.print_exc()
 
     finally:
-        # Очистка MCP bridge при завершенні (якщо використовується справжній MCP)
-        if USE_REAL_MCP:
-            try:
-                cleanup_bridge()
-            except:
-                pass
+        # Очистка MCP bridge при завершенні
+        try:
+            cleanup_bridge()
+        except:
+            pass
