@@ -83,7 +83,7 @@ pip install -r requirements.txt
 - `langchain>=1.0.0` - LLM orchestration
 - `langchain-openai>=1.0.0` - OpenAI integration
 - `mcp>=1.6.0` - Model Context Protocol
-- `duckduckgo-search>=5.0.0` - News search
+- `requests>=2.31.0` - HTTP requests (для Brave Search API)
 - `python-dotenv>=1.0.0` - Environment variables
 
 ### Крок 3: Конфігурація
@@ -96,6 +96,7 @@ cp .env.example .env
 ```bash
 # Обов'язково
 OPENAI_API_KEY=your-openai-api-key-here
+BRAVE_API_KEY=your-brave-api-key-here  # Отримайте на https://brave.com/search/api/
 
 # Опціонально
 DEFAULT_MODEL=gpt-4o-mini

@@ -12,8 +12,5 @@ mcp>=1.6.0
 # HTTP requests
 requests>=2.31.0
 
-# Search
-duckduckgo-search>=5.0.0,<6.0.0
-
 # Utilities
 python-dotenv>=1.0.0
