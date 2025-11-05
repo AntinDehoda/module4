@@ -25,6 +25,9 @@ class Config:
     # OpenAI API Key (required)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
+    # Brave Search API Key (required for search)
+    BRAVE_API_KEY = os.getenv("BRAVE_API_KEY", "")
+
     # Model settings
     DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gpt-4o-mini")
     TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
@@ -44,8 +47,16 @@ class Config:
                 "Example: export OPENAI_API_KEY='your-api-key-here'"
             )
 
-        # Set the API key in environment for libraries to use
+        if not cls.BRAVE_API_KEY:
+            raise ValueError(
+                "BRAVE_API_KEY not found. Please set it in .env file or environment variables.\n"
+                "Example: export BRAVE_API_KEY='your-brave-api-key-here'\n"
+                "Get your key at: https://brave.com/search/api/"
+            )
+
+        # Set the API keys in environment for libraries to use
         os.environ["OPENAI_API_KEY"] = cls.OPENAI_API_KEY
+        os.environ["BRAVE_API_KEY"] = cls.BRAVE_API_KEY
 
         return True
 
@@ -56,7 +67,8 @@ class Config:
         print(f"  Model: {cls.DEFAULT_MODEL}")
         print(f"  Temperature: {cls.TEMPERATURE}")
         print(f"  MCP Sequential Thinking: {'✓ Enabled' if cls.ENABLE_MCP_THINKING else '✗ Disabled'}")
-        print(f"  API Key: {'✓ Set' if cls.OPENAI_API_KEY else '✗ Not set'}")
+        print(f"  OpenAI API Key: {'✓ Set' if cls.OPENAI_API_KEY else '✗ Not set'}")
+        print(f"  Brave Search API Key: {'✓ Set' if cls.BRAVE_API_KEY else '✗ Not set'}")
         print()
 
 

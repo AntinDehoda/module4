@@ -10,11 +10,11 @@ Advanced CrewAI Agent з паралельним запуском та MCP Sequen
 """
 
 import time
+import requests
 from crewai import Agent, Task, Crew, Process
 from crewai.tools import tool
 from crewai_tools import MCPServerAdapter
 from mcp import StdioServerParameters
-from duckduckgo_search import DDGS
 from config import Config
 
 # Initialize configuration
@@ -23,10 +23,10 @@ Config.validate()
 print("🔌 Підготовка до підключення MCP Sequential Thinking сервера...")
 
 
-@tool("DuckDuckGo News Search")
+@tool("Brave News Search")
 def search_news(query: str) -> str:
     """
-    Пошук новин через DuckDuckGo.
+    Пошук новин через Brave Search API.
 
     Args:
         query: Пошуковий запит
@@ -35,8 +35,24 @@ def search_news(query: str) -> str:
         Результати пошуку новин
     """
     try:
-        ddgs = DDGS()
-        results = ddgs.text(query, max_results=Config.MAX_SEARCH_RESULTS)
+        # Brave Search API endpoint
+        url = "https://api.search.brave.com/res/v1/web/search"
+
+        headers = {
+            "Accept": "application/json",
+            "X-Subscription-Token": Config.BRAVE_API_KEY
+        }
+
+        params = {
+            "q": query,
+            "count": Config.MAX_SEARCH_RESULTS
+        }
+
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+        results = data.get("web", {}).get("results", [])
 
         if not results:
             return f"Новин не знайдено для запиту: {query}"
@@ -44,13 +60,15 @@ def search_news(query: str) -> str:
         output = []
         for i, result in enumerate(results, 1):
             output.append(f"{i}. {result.get('title', 'N/A')}")
-            output.append(f"   {result.get('body', 'N/A')}")
-            output.append(f"   Джерело: {result.get('href', 'N/A')}\n")
+            output.append(f"   {result.get('description', 'N/A')}")
+            output.append(f"   Джерело: {result.get('url', 'N/A')}\n")
 
         return "\n".join(output)
 
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         return f"Помилка пошуку: {str(e)}"
+    except Exception as e:
+        return f"Несподівана помилка: {str(e)}"
 
 
 def create_search_agents():
@@ -180,7 +198,7 @@ def run_advanced_analysis(topic="artificial intelligence"):
 
             # Створюємо задачі для паралельного пошуку
             bbc_task = Task(
-                description=f'Використай інструмент DuckDuckGo News Search для пошуку новин про {topic} на сайті BBC. '
+                description=f'Використай інструмент Brave News Search для пошуку новин про {topic} на сайті BBC. '
                            f'Пошуковий запит: "site:bbc.com {topic} news". '
                            f'Проаналізуй знайдені новини та виділи ключові факти.',
                 agent=bbc_agent,
@@ -188,7 +206,7 @@ def run_advanced_analysis(topic="artificial intelligence"):
             )
 
             cnn_task = Task(
-                description=f'Використай інструмент DuckDuckGo News Search для пошуку новин про {topic} на сайті CNN. '
+                description=f'Використай інструмент Brave News Search для пошуку новин про {topic} на сайті CNN. '
                            f'Пошуковий запит: "site:cnn.com {topic} news". '
                            f'Проаналізуй знайдені новини та виділи ключові факти.',
                 agent=cnn_agent,
@@ -196,7 +214,7 @@ def run_advanced_analysis(topic="artificial intelligence"):
             )
 
             reuters_task = Task(
-                description=f'Використай інструмент DuckDuckGo News Search для пошуку новин про {topic} на сайті Reuters. '
+                description=f'Використай інструмент Brave News Search для пошуку новин про {topic} на сайті Reuters. '
                            f'Пошуковий запит: "site:reuters.com {topic} news". '
                            f'Проаналізуй знайдені новини та виділи ключові факти.',
                 agent=reuters_agent,
