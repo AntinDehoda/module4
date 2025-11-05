@@ -1,12 +1,12 @@
 """
-Advanced CrewAI Agent з паралельним запуском та MCP Sequential Thinking
+Advanced CrewAI Agent з паралельним запуском та Sequential Thinking
 
 Цей агент демонструє:
 1. Паралельний пошук новин з 3 джерел (BBC, CNN, Reuters)
-2. Використання MCP Sequential Thinking для глибокого аналізу
+2. Структуроване мислення для глибокого аналізу
 3. Синтез висновків з рекомендаціями
 
-ВАЖЛИВО: Цей приклад використовує СПРАВЖНІЙ MCP Sequential Thinking сервер!
+Продакшен-ready версія з простим але ефективним sequential thinking.
 """
 
 import time
@@ -14,14 +14,12 @@ from crewai import Agent, Task, Crew, Process
 from crewai.tools import tool
 from duckduckgo_search import DDGS
 from config import Config
+from sequential_thinking import THINKING_TOOLS, reset_thinking_process
 
 # Initialize configuration
 Config.validate()
 
-# Імпорт MCP tools
-from mcp_bridge import MCP_THINKING_TOOLS, cleanup_bridge
-THINKING_TOOLS = MCP_THINKING_TOOLS
-print("✅ Використовується СПРАВЖНІЙ MCP Sequential Thinking сервер")
+print("✅ Sequential Thinking ініціалізовано")
 
 
 @tool("DuckDuckGo News Search")
@@ -141,8 +139,12 @@ def run_advanced_analysis(topic="artificial intelligence", enable_thinking=True)
     """
 
     print("\n" + "="*80)
-    print("🚀 ADVANCED CREWAI: Паралельний пошук + MCP Sequential Thinking")
+    print("🚀 ADVANCED CREWAI: Паралельний пошук + Sequential Thinking")
     print("="*80 + "\n")
+
+    # Reset thinking process
+    if enable_thinking:
+        reset_thinking_process()
 
     start_time = time.time()
 
@@ -153,8 +155,7 @@ def run_advanced_analysis(topic="artificial intelligence", enable_thinking=True)
     synthesis_agent = create_synthesis_agent()
 
     print(f"\n🔍 Тема аналізу: '{topic}'")
-    print(f"🧠 MCP Sequential Thinking: {'✓ Enabled' if enable_thinking and Config.ENABLE_MCP_THINKING else '✗ Disabled'}")
-    print(f"📡 MCP Server: npx @modelcontextprotocol/server-sequential-thinking")
+    print(f"🧠 Sequential Thinking: {'✓ Enabled' if enable_thinking and Config.ENABLE_MCP_THINKING else '✗ Disabled'}")
     print(f"   └─ Пошук з BBC, CNN, Reuters (паралельно)\n")
 
     # Створюємо задачі для паралельного пошуку
@@ -186,21 +187,29 @@ def run_advanced_analysis(topic="artificial intelligence", enable_thinking=True)
     if enable_thinking and Config.ENABLE_MCP_THINKING:
         analysis_description = f'''Проаналізуй новини про "{topic}" з трьох джерел (BBC, CNN, Reuters).
 
-ВАЖЛИВО: Використай інструмент Sequential Thinking для структурованого аналізу:
+ВАЖЛИВО: Використай інструмент "Sequential Thinking" для структурованого аналізу.
 
-Крок 1: Визнач основні теми що згадуються в усіх джерелах
-Крок 2: Знайди унікальні інсайти з кожного джерела
-Крок 3: Виділи протиріччя або різні точки зору (якщо є)
-Крок 4: Проаналізуй можливі наслідки подій
-Крок 5: Сформулюй ключові висновки
+Виконай 5 кроків думки, викликаючи інструмент для кожного:
 
-Для кожного кроку викликай Sequential Thinking tool з параметрами:
-- thought: твій аналіз на цьому кроці
-- thought_number: номер кроку (1-5)
-- total_thoughts: 5
-- next_thought_needed: true (окрім останнього кроку)
+Крок 1 (context="Problem Definition"):
+- Визнач основні теми що згадуються в усіх джерелах
 
-Після завершення викликай Get Thinking Summary для підсумку процесу мислення.
+Крок 2 (context="Pattern Recognition"):
+- Знайди унікальні інсайти з кожного джерела
+
+Крок 3 (context="Comparative Analysis"):
+- Виділи протиріччя або різні точки зору (якщо є)
+
+Крок 4 (context="Impact Assessment"):
+- Проаналізуй можливі наслідки подій
+
+Крок 5 (context="Conclusion"):
+- Сформулюй ключові висновки
+
+Після всіх кроків викликай "Get Thinking Summary" для отримання повного підсумку.
+
+Формат виклику:
+Sequential Thinking(thought="ваш аналіз", step_number=X, total_steps=5, context="назва кроку")
 '''
     else:
         analysis_description = f'''Проаналізуй новини про "{topic}" з трьох джерел (BBC, CNN, Reuters).
@@ -255,7 +264,7 @@ def run_advanced_analysis(topic="artificial intelligence", enable_thinking=True)
     print(f"\n{result}\n")
     print("="*80)
     print(f"⏱️  Час виконання: {duration:.2f} секунд")
-    print(f"🧠 MCP Thinking: {'використано' if enable_thinking and Config.ENABLE_MCP_THINKING else 'не використано'}")
+    print(f"🧠 Sequential Thinking: {'використано' if enable_thinking and Config.ENABLE_MCP_THINKING else 'не використано'}")
     print("="*80 + "\n")
 
     return {
@@ -286,10 +295,3 @@ if __name__ == "__main__":
         print(f"\n❌ Помилка: {e}")
         import traceback
         traceback.print_exc()
-
-    finally:
-        # Очистка MCP bridge при завершенні
-        try:
-            cleanup_bridge()
-        except:
-            pass
