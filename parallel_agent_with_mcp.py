@@ -1,25 +1,26 @@
 """
-Advanced CrewAI Agent з паралельним запуском та Sequential Thinking
+Advanced CrewAI Agent з паралельним запуском та MCP Sequential Thinking
 
 Цей агент демонструє:
 1. Паралельний пошук новин з 3 джерел (BBC, CNN, Reuters)
-2. Структуроване мислення для глибокого аналізу
+2. Офіційний MCP Sequential Thinking сервер для глибокого аналізу
 3. Синтез висновків з рекомендаціями
 
-Продакшен-ready версія з простим але ефективним sequential thinking.
+Використовує вбудовану підтримку MCP через MCPServerAdapter.
 """
 
 import time
 from crewai import Agent, Task, Crew, Process
 from crewai.tools import tool
+from crewai_tools import MCPServerAdapter
+from mcp import StdioServerParameters
 from duckduckgo_search import DDGS
 from config import Config
-from sequential_thinking import THINKING_TOOLS, reset_thinking_process
 
 # Initialize configuration
 Config.validate()
 
-print("✅ Sequential Thinking ініціалізовано")
+print("🔌 Підготовка до підключення MCP Sequential Thinking сервера...")
 
 
 @tool("DuckDuckGo News Search")
@@ -90,20 +91,28 @@ def create_search_agents():
     return bbc_agent, cnn_agent, reuters_agent
 
 
-def create_analyst_agent(enable_thinking=True):
-    """Створює агента-аналітика з MCP thinking tools"""
+def get_mcp_server_parameters():
+    """Параметри для підключення до MCP Sequential Thinking сервера"""
+    return StdioServerParameters(
+        command="npx",
+        args=["-y", "@modelcontextprotocol/server-sequential-thinking"],
+        env=None
+    )
 
-    tools = []
-    if enable_thinking and Config.ENABLE_MCP_THINKING:
-        tools = THINKING_TOOLS
 
+def create_analyst_agent_with_mcp(mcp_tools):
+    """Створює агента-аналітика з MCP thinking tools
+
+    Args:
+        mcp_tools: Список MCP інструментів з MCPServerAdapter
+    """
     analyst_agent = Agent(
         role='Senior News Analyst',
         goal='Провести глибокий аналіз новин з різних джерел та виробити висновки',
         backstory='Ти досвідчений аналітик новин з 15 років досвіду. '
-                 'Ти використовуєш структуроване мислення для аналізу складних ситуацій. '
+                 'Ти використовуєш MCP Sequential Thinking для аналізу складних ситуацій. '
                  'Твої висновки завжди базуються на фактах та логічному аналізі.',
-        tools=tools,
+        tools=mcp_tools,
         verbose=True,
         allow_delegation=False
     )
@@ -126,170 +135,168 @@ def create_synthesis_agent():
     return synthesis_agent
 
 
-def run_advanced_analysis(topic="artificial intelligence", enable_thinking=True):
+def run_advanced_analysis(topic="artificial intelligence"):
     """
     Запускає розширений аналіз новин з MCP thinking
 
     Args:
         topic: Тема для пошуку новин
-        enable_thinking: Чи використовувати MCP sequential thinking
 
     Returns:
         Dict з результатами аналізу
     """
 
     print("\n" + "="*80)
-    print("🚀 ADVANCED CREWAI: Паралельний пошук + Sequential Thinking")
+    print("🚀 ADVANCED CREWAI: Паралельний пошук + MCP Sequential Thinking")
     print("="*80 + "\n")
 
-    # Reset thinking process
-    if enable_thinking:
-        reset_thinking_process()
-
-    start_time = time.time()
-
-    # Створюємо агентів
-    print("📋 Створення агентів...")
+    # Створюємо агентів для пошуку
+    print("📋 Створення пошукових агентів...")
     bbc_agent, cnn_agent, reuters_agent = create_search_agents()
-    analyst_agent = create_analyst_agent(enable_thinking=enable_thinking)
     synthesis_agent = create_synthesis_agent()
 
     print(f"\n🔍 Тема аналізу: '{topic}'")
-    print(f"🧠 Sequential Thinking: {'✓ Enabled' if enable_thinking and Config.ENABLE_MCP_THINKING else '✗ Disabled'}")
+    print(f"🧠 MCP Sequential Thinking: Підключаємось...")
     print(f"   └─ Пошук з BBC, CNN, Reuters (паралельно)\n")
 
-    # Створюємо задачі для паралельного пошуку
-    bbc_task = Task(
-        description=f'Використай інструмент DuckDuckGo News Search для пошуку новин про {topic} на сайті BBC. '
-                   f'Пошуковий запит: "site:bbc.com {topic} news". '
-                   f'Проаналізуй знайдені новини та виділи ключові факти.',
-        agent=bbc_agent,
-        expected_output='Короткий аналіз останніх новин з BBC з ключовими фактами'
-    )
+    # Підключаємось до MCP сервера через context manager
+    server_params = get_mcp_server_parameters()
 
-    cnn_task = Task(
-        description=f'Використай інструмент DuckDuckGo News Search для пошуку новин про {topic} на сайті CNN. '
-                   f'Пошуковий запит: "site:cnn.com {topic} news". '
-                   f'Проаналізуй знайдені новини та виділи ключові факти.',
-        agent=cnn_agent,
-        expected_output='Короткий аналіз останніх новин з CNN з ключовими фактами'
-    )
+    try:
+        with MCPServerAdapter(server_params, connect_timeout=60) as mcp_tools:
+            print(f"✅ MCP сервер підключено! Доступно інструментів: {len(mcp_tools)}")
 
-    reuters_task = Task(
-        description=f'Використай інструмент DuckDuckGo News Search для пошуку новин про {topic} на сайті Reuters. '
-                   f'Пошуковий запит: "site:reuters.com {topic} news". '
-                   f'Проаналізуй знайдені новини та виділи ключові факти.',
-        agent=reuters_agent,
-        expected_output='Короткий аналіз останніх новин з Reuters з ключовими фактами'
-    )
+            # Показуємо доступні інструменти
+            if mcp_tools:
+                print(f"   📋 Інструменти:")
+                for tool in mcp_tools:
+                    print(f"      • {tool.name}")
+            print()
 
-    # Задача глибокого аналізу з використанням thinking tools
-    if enable_thinking and Config.ENABLE_MCP_THINKING:
-        analysis_description = f'''Проаналізуй новини про "{topic}" з трьох джерел (BBC, CNN, Reuters).
+            # Створюємо аналітика з MCP tools
+            analyst_agent = create_analyst_agent_with_mcp(mcp_tools)
 
-ВАЖЛИВО: Використай інструмент "Sequential Thinking" для структурованого аналізу.
+            start_time = time.time()
 
-Виконай 5 кроків думки, викликаючи інструмент для кожного:
+            # Створюємо задачі для паралельного пошуку
+            bbc_task = Task(
+                description=f'Використай інструмент DuckDuckGo News Search для пошуку новин про {topic} на сайті BBC. '
+                           f'Пошуковий запит: "site:bbc.com {topic} news". '
+                           f'Проаналізуй знайдені новини та виділи ключові факти.',
+                agent=bbc_agent,
+                expected_output='Короткий аналіз останніх новин з BBC з ключовими фактами'
+            )
 
-Крок 1 (context="Problem Definition"):
-- Визнач основні теми що згадуються в усіх джерелах
+            cnn_task = Task(
+                description=f'Використай інструмент DuckDuckGo News Search для пошуку новин про {topic} на сайті CNN. '
+                           f'Пошуковий запит: "site:cnn.com {topic} news". '
+                           f'Проаналізуй знайдені новини та виділи ключові факти.',
+                agent=cnn_agent,
+                expected_output='Короткий аналіз останніх новин з CNN з ключовими фактами'
+            )
 
-Крок 2 (context="Pattern Recognition"):
-- Знайди унікальні інсайти з кожного джерела
+            reuters_task = Task(
+                description=f'Використай інструмент DuckDuckGo News Search для пошуку новин про {topic} на сайті Reuters. '
+                           f'Пошуковий запит: "site:reuters.com {topic} news". '
+                           f'Проаналізуй знайдені новини та виділи ключові факти.',
+                agent=reuters_agent,
+                expected_output='Короткий аналіз останніх новин з Reuters з ключовими фактами'
+            )
 
-Крок 3 (context="Comparative Analysis"):
-- Виділи протиріччя або різні точки зору (якщо є)
+            # Задача глибокого аналізу з MCP Sequential Thinking
+            analysis_description = f'''Проаналізуй новини про "{topic}" з трьох джерел (BBC, CNN, Reuters).
 
-Крок 4 (context="Impact Assessment"):
-- Проаналізуй можливі наслідки подій
+ВАЖЛИВО: Використай інструмент "sequentialthinking" (MCP Sequential Thinking) для структурованого аналізу.
 
-Крок 5 (context="Conclusion"):
-- Сформулюй ключові висновки
+Виконай 5 кроків думки, викликаючи MCP інструмент для кожного:
 
-Після всіх кроків викликай "Get Thinking Summary" для отримання повного підсумку.
+Крок 1 - thought: "Визначаю основні теми що згадуються в усіх джерелах: [твій аналіз]"
+        thoughtNumber: 1, totalThoughts: 5, nextThoughtNeeded: true
 
-Формат виклику:
-Sequential Thinking(thought="ваш аналіз", step_number=X, total_steps=5, context="назва кроку")
+Крок 2 - thought: "Знаходжу унікальні інсайти з кожного джерела: [твій аналіз]"
+        thoughtNumber: 2, totalThoughts: 5, nextThoughtNeeded: true
+
+Крок 3 - thought: "Виділяю протиріччя або різні точки зору: [твій аналіз]"
+        thoughtNumber: 3, totalThoughts: 5, nextThoughtNeeded: true
+
+Крок 4 - thought: "Аналізую можливі наслідки подій: [твій аналіз]"
+        thoughtNumber: 4, totalThoughts: 5, nextThoughtNeeded: true
+
+Крок 5 - thought: "Формулюю ключові висновки: [твій аналіз]"
+        thoughtNumber: 5, totalThoughts: 5, nextThoughtNeeded: false
+
+Кожний виклик інструменту sequentialthinking автоматично візуалізується MCP сервером.
 '''
-    else:
-        analysis_description = f'''Проаналізуй новини про "{topic}" з трьох джерел (BBC, CNN, Reuters).
 
-Виділи:
-1. Основні теми що згадуються в усіх джерелах
-2. Унікальні інсайти з кожного джерела
-3. Протиріччя або різні точки зору (якщо є)
-4. Можливі наслідки подій
-5. Ключові висновки
-'''
+            analysis_task = Task(
+                description=analysis_description,
+                agent=analyst_agent,
+                expected_output='Глибокий аналіз новин з висновками використовуючи MCP Sequential Thinking',
+                context=[bbc_task, cnn_task, reuters_task]
+            )
 
-    analysis_task = Task(
-        description=analysis_description,
-        agent=analyst_agent,
-        expected_output='Глибокий аналіз новин з висновками',
-        context=[bbc_task, cnn_task, reuters_task]
-    )
+            # Задача синтезу фінального звіту
+            synthesis_task = Task(
+                description='На основі аналізу створи комплексний звіт який включає:\n'
+                           '1. Executive Summary (2-3 речення)\n'
+                           '2. Ключові знахідки з кожного джерела\n'
+                           '3. Основні висновки та тренди\n'
+                           '4. Рекомендації для подальшого моніторингу\n\n'
+                           'Звіт має бути чітким, структурованим та базуватись на фактах.',
+                agent=synthesis_agent,
+                expected_output='Комплексний аналітичний звіт з рекомендаціями',
+                context=[analysis_task]
+            )
 
-    # Задача синтезу фінального звіту
-    synthesis_task = Task(
-        description='На основі аналізу створи комплексний звіт який включає:\n'
-                   '1. Executive Summary (2-3 речення)\n'
-                   '2. Ключові знахідки з кожного джерела\n'
-                   '3. Основні висновки та тренди\n'
-                   '4. Рекомендації для подальшого моніторингу\n\n'
-                   'Звіт має бути чітким, структурованим та базуватись на фактах.',
-        agent=synthesis_agent,
-        expected_output='Комплексний аналітичний звіт з рекомендаціями',
-        context=[analysis_task]
-    )
+            # Створюємо Crew
+            crew = Crew(
+                agents=[bbc_agent, cnn_agent, reuters_agent, analyst_agent, synthesis_agent],
+                tasks=[bbc_task, cnn_task, reuters_task, analysis_task, synthesis_task],
+                process=Process.sequential,
+                verbose=True
+            )
 
-    # Створюємо Crew
-    crew = Crew(
-        agents=[bbc_agent, cnn_agent, reuters_agent, analyst_agent, synthesis_agent],
-        tasks=[bbc_task, cnn_task, reuters_task, analysis_task, synthesis_task],
-        process=Process.sequential,
-        verbose=True
-    )
+            # Виконуємо
+            print("⚡ Запуск паралельного пошуку та аналізу...\n")
+            result = crew.kickoff()
 
-    # Виконуємо
-    print("⚡ Запуск паралельного пошуку та аналізу...\n")
-    result = crew.kickoff()
+            end_time = time.time()
+            duration = end_time - start_time
 
-    end_time = time.time()
-    duration = end_time - start_time
+            # Виводимо результати
+            print("\n" + "="*80)
+            print("✅ ФІНАЛЬНИЙ ЗВІТ")
+            print("="*80)
+            print(f"\n{result}\n")
+            print("="*80)
+            print(f"⏱️  Час виконання: {duration:.2f} секунд")
+            print(f"🧠 MCP Sequential Thinking: використано")
+            print("="*80 + "\n")
 
-    # Виводимо результати
-    print("\n" + "="*80)
-    print("✅ ФІНАЛЬНИЙ ЗВІТ")
-    print("="*80)
-    print(f"\n{result}\n")
-    print("="*80)
-    print(f"⏱️  Час виконання: {duration:.2f} секунд")
-    print(f"🧠 Sequential Thinking: {'використано' if enable_thinking and Config.ENABLE_MCP_THINKING else 'не використано'}")
-    print("="*80 + "\n")
+            return {
+                'result': str(result),
+                'duration': duration,
+                'topic': topic,
+                'mcp_enabled': True
+            }
 
-    return {
-        'result': str(result),
-        'duration': duration,
-        'topic': topic,
-        'thinking_enabled': enable_thinking and Config.ENABLE_MCP_THINKING
-    }
+    except Exception as e:
+        print(f"\n❌ Помилка підключення до MCP: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 if __name__ == "__main__":
     try:
-        # Приклад 1: З MCP thinking
-        print("📊 Запуск з MCP Sequential Thinking...")
-        result1 = run_advanced_analysis(
-            topic="artificial intelligence breakthrough",
-            enable_thinking=True
+        # Запуск з MCP Sequential Thinking
+        print("📊 Запуск з MCP Sequential Thinking...\n")
+        result = run_advanced_analysis(
+            topic="artificial intelligence breakthrough"
         )
 
-        # Приклад 2: Без thinking (для порівняння швидкості)
-        # print("\n\n📊 Запуск без MCP Sequential Thinking...")
-        # result2 = run_advanced_analysis(
-        #     topic="artificial intelligence breakthrough",
-        #     enable_thinking=False
-        # )
+        print("\n✅ Аналіз завершено успішно!")
+        print(f"📄 Час виконання: {result['duration']:.2f}с")
 
     except Exception as e:
         print(f"\n❌ Помилка: {e}")
