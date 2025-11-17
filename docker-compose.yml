@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  crewai-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crewai-mcp-agent
+    env_file:
+      - .env
+    volumes:
+      # Mount current directory for development (optional)
+      - .:/app
+      # Prevent node_modules conflicts
+      - /app/node_modules
+    environment:
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+    # Override default command to keep container running
+    # Uncomment one of these options:
+
+    # Option 1: Run the main analysis
+    # command: python parallel_agent_with_mcp.py
+
+    # Option 2: Run MCP examples interactively
+    # command: python mcp_examples.py
+
+    # Option 3: Keep container running for manual commands
+    command: /bin/bash
+
+networks:
+  default:
+    name: crewai-network
